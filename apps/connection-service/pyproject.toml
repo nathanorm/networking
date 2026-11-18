@@ -1,0 +1,14 @@
+[project]
+name = "connection-service"
+version = "0.1.0"
+description = "Edge gateway: ingest TCP/UDP telemetry, buffer in SQLite, batch upstream"
+requires-python = ">=3.13"
+dependencies = ["edgelab-protocol", "edgelab-common", "aiohttp>=3.10", "prometheus-client>=0.21"]
+
+[tool.uv.sources]
+edgelab-protocol = { workspace = true }
+edgelab-common = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,10 @@
+[project]
+name = "edgelab-common"
+version = "0.1.0"
+description = "edgelab shared runtime helpers: env config, logging, backoff, shutdown"
+requires-python = ">=3.13"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

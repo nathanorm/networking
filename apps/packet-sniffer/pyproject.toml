@@ -1,0 +1,14 @@
+[project]
+name = "packet-sniffer"
+version = "0.1.0"
+description = "Scapy sniffer that decodes edgelab frames on the wire"
+requires-python = ">=3.13"
+dependencies = ["edgelab-protocol", "edgelab-common", "scapy>=2.6"]
+
+[tool.uv.sources]
+edgelab-protocol = { workspace = true }
+edgelab-common = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

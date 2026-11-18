@@ -1,0 +1,73 @@
+name: edgelab
+
+x-app: &app
+  init: true # tini as PID 1: forwards SIGTERM, reaps zombies
+  stop_grace_period: 10s
+  environment: &env
+    LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+services:
+  emulator:
+    <<: *app
+    build: { context: ., dockerfile: apps/emulator/Dockerfile }
+    image: edgelab/emulator:dev
+    networks: [field]
+    environment:
+      <<: *env
+      SAMPLE_RATE_HZ: ${SAMPLE_RATE_HZ:-50}
+      FAULT_UDP_DROP_PCT: ${FAULT_UDP_DROP_PCT:-0}
+      FAULT_CRC_CORRUPT_PCT: ${FAULT_CRC_CORRUPT_PCT:-0}
+      FAULT_TCP_FRAGMENT_BYTES: ${FAULT_TCP_FRAGMENT_BYTES:-0}
+
+  connection-service:
+    <<: *app
+    build: { context: ., dockerfile: apps/connection-service/Dockerfile }
+    image: edgelab/connection-service:dev
+    networks: [field, uplink] # the only dual-homed service, like a real gateway
+    volumes: [edge-buffer:/var/lib/edgelab] # named volume: SQLite WAL is unreliable on macOS bind mounts
+    ports: ["9100:9100"]
+    # Deliberately no depends_on: the service must cope with the backend being absent.
+
+  backend-collector:
+    <<: *app
+    build: { context: ., dockerfile: apps/backend-collector/Dockerfile }
+    image: edgelab/backend-collector:dev
+    networks: [uplink]
+    volumes: [backend-data:/var/lib/edgelab]
+    ports: ["8080:8080"]
+    environment:
+      <<: *env
+      FAIL_RATE: ${FAIL_RATE:-0}
+
+  packet-sniffer:
+    build: { context: ., dockerfile: apps/packet-sniffer/Dockerfile }
+    image: edgelab/packet-sniffer:dev
+    profiles: [sniff] # started on demand: `make sniff`
+    network_mode: service:connection-service # see exactly what the gateway sees
+    cap_add: [NET_RAW, NET_ADMIN]
+    volumes: [./captures:/captures]
+    environment:
+      <<: *env
+      VERBOSE: ${VERBOSE:-0}
+      PCAP: ${PCAP:-0}
+
+  dev: # throwaway toolbox for tests / lint / lock: `make test`
+    image: ghcr.io/astral-sh/uv:0.12.19-python3.13-trixie-slim
+    profiles: [dev]
+    working_dir: /app
+    volumes:
+      - .:/app
+      - dev-venv:/app/.venv # keep the Linux venv out of the host checkout
+      - uv-cache:/root/.cache/uv
+    environment:
+      UV_LINK_MODE: copy
+
+networks:
+  field: { internal: true } # device segment: no route out, can't reach the backend
+  uplink: {}
+
+volumes:
+  edge-buffer: {}
+  backend-data: {}
+  dev-venv: {}
+  uv-cache: {}
